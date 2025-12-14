@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
@@ -21,6 +22,19 @@ const app = express();
  * Security and parsing middleware
  */
 app.use(helmet()); // HTTP security headers
+
+/**
+ * CORS configuration
+ * Allow requests from all origins (safe for public API)
+ * Swagger UI needs this to make requests from browser
+ */
+app.use(cors({
+  origin: '*', // Allow all origins for public API
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false, // Set to true if using cookies
+}));
+
 app.use(express.json({ limit: '10mb' })); // JSON body parser
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL-encoded body parser
 
