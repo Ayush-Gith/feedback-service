@@ -1,0 +1,221 @@
+{
+  "info": {
+    "name": "Feedback Service API - Basic Test Cases",
+    "description": "Collection of 6 basic test cases covering registration, authentication, feedback submission, retrieval, and admin analytics",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Register User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123\",\n  \"passwordConfirm\": \"SecurePass123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Test Case 1: User Registration\n\nObjective: Create a new user account\n\nExpected Response:\n- Status: 201 Created\n- Body contains user object with id, name, email, role (USER)\n- No password returned in response\n\nTest Flow:\n1. Send POST request with valid name, email, password\n2. Verify user is created with default USER role\n3. Verify duplicate email is rejected (409 Conflict)\n\nSuccess Criteria:\n- New user created\n- Password is hashed (not stored as plain text)\n- Email is unique"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Login User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Test Case 2: User Login\n\nObjective: Authenticate user and obtain JWT token\n\nExpected Response:\n- Status: 200 OK\n- Body contains:\n  - user object (id, name, email, role)\n  - token (JWT string)\n\nTest Flow:\n1. Send POST request with correct email and password\n2. Capture JWT token from response\n3. Store token in {{userToken}} variable for subsequent requests\n4. Test with wrong password (should return 401)\n\nSuccess Criteria:\n- Valid JWT token generated\n- Token can be used in Authorization header\n- Invalid credentials rejected (401)\n\nPostman Script (Tests tab):\nif (pm.response.code === 200) {\n  pm.environment.set(\"userToken\", pm.response.json().data.token);\n}"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Submit Feedback",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent service! Very satisfied with the product quality and customer support.\",\n  \"source\": \"web\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/feedback",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "feedback"
+          ]
+        },
+        "description": "Test Case 3: Submit Feedback\n\nObjective: Create new feedback entry\n\nExpected Response:\n- Status: 201 Created\n- Body contains feedback object with:\n  - id, rating, comment, source\n  - createdBy (user details)\n  - timestamps (createdAt, updatedAt)\n\nTest Flow:\n1. Use JWT token from login in Authorization header\n2. Submit feedback with rating (1-5), comment, and source\n3. Verify feedback is associated with logged-in user\n4. Test invalid rating (6, 0) - should return 400\n5. Test missing comment - should return 400\n\nSuccess Criteria:\n- Feedback saved with user reference\n- Rating validated (1-5 only)\n- Source enum validated (web, mobile, email, in-person)\n- Comment length validated (3-1000 chars)\n- Requires authentication (401 if no token)\n\nSample Variations:\n- Rating 1: \"Poor service, not satisfied\"\n- Rating 3: \"Average experience, could be better\"\n- Different sources: mobile, email, in-person"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Get Feedback - User (Own Only)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/feedback?page=1&limit=10&rating=5&source=web&startDate=2025-01-01&endDate=2025-12-31",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "feedback"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "rating",
+              "value": "5"
+            },
+            {
+              "key": "source",
+              "value": "web"
+            },
+            {
+              "key": "startDate",
+              "value": "2025-01-01"
+            },
+            {
+              "key": "endDate",
+              "value": "2025-12-31"
+            }
+          ]
+        },
+        "description": "Test Case 4: Fetch Feedback (User - Own Only)\n\nObjective: Retrieve paginated feedback with optional filters\n\nExpected Response:\n- Status: 200 OK\n- Body contains:\n  - data array (feedback items)\n  - pagination object (page, limit, total, pages)\n\nRBAC Behavior:\n- Regular USER: sees only own feedback\n- ADMIN: sees all feedback (test separately)\n\nTest Flow:\n1. Use USER JWT token\n2. Request feedback without filters - should see own feedback\n3. Test pagination: page=1, limit=5\n4. Test filters individually:\n   - rating=5 (only 5-star feedback)\n   - source=web (only web feedback)\n   - startDate=2025-01-01 (from Jan 1)\n   - endDate=2025-12-31 (until Dec 31)\n5. Combine multiple filters\n\nSuccess Criteria:\n- USER role restricted to own feedback\n- Pagination works correctly (skip/limit)\n- Filters applied to query (rating, source, date)\n- Results sorted by date descending (recent first)\n- Invalid date format returns 400\n\nQuery Variations:\n- {{baseUrl}}/feedback (no filters)\n- {{baseUrl}}/feedback?page=2&limit=5 (pagination)\n- {{baseUrl}}/feedback?rating=4 (single filter)\n- {{baseUrl}}/feedback?startDate=2025-12-01&endDate=2025-12-31 (date range)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Admin - Get Average Rating",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/analytics/average-rating",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "analytics",
+            "average-rating"
+          ]
+        },
+        "description": "Test Case 5: Admin Analytics - Average Rating\n\nObjective: Retrieve overall feedback statistics\n\nExpected Response:\n- Status: 200 OK\n- Body contains:\n  - averageRating (float, rounded to 2 decimals)\n  - totalFeedback (integer)\n  - minRating (integer 1-5)\n  - maxRating (integer 1-5)\n\nAccess Control:\n- ADMIN role only\n- Regular USER: returns 403 Forbidden\n- No token: returns 401 Unauthorized\n\nTest Flow:\n1. Use ADMIN JWT token\n2. Call endpoint without filters\n3. Verify calculations are correct based on submitted feedback\n4. Test with regular USER token - should return 403\n5. Test without token - should return 401\n\nSuccess Criteria:\n- ADMIN role authorization enforced\n- Aggregation pipeline computes statistics\n- Results accurate across all feedback\n- No data leakage to non-admin users\n\nExample Response:\n{\n  \"success\": true,\n  \"message\": \"Average rating retrieved successfully\",\n  \"data\": {\n    \"averageRating\": 4.2,\n    \"totalFeedback\": 47,\n    \"minRating\": 1,\n    \"maxRating\": 5\n  }\n}"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Admin - Get Feedback Per Day",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/analytics/feedback-per-day?startDate=2025-12-01&endDate=2025-12-15",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "analytics",
+            "feedback-per-day"
+          ],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2025-12-01"
+            },
+            {
+              "key": "endDate",
+              "value": "2025-12-15"
+            }
+          ]
+        },
+        "description": "Test Case 6: Admin Analytics - Feedback Per Day\n\nObjective: Retrieve daily feedback trends and metrics\n\nExpected Response:\n- Status: 200 OK\n- Body contains array of daily records:\n  - date (YYYY-MM-DD format)\n  - count (integer, feedback for that day)\n  - averageRating (float, daily average)\n\nAccess Control:\n- ADMIN role only\n- Regular USER: returns 403 Forbidden\n\nTest Flow:\n1. Use ADMIN JWT token\n2. Call without date filters - returns all days\n3. Test with startDate only (from that date onwards)\n4. Test with endDate only (until that date)\n5. Test with both startDate and endDate (range)\n6. Verify date format validation (ISO8601)\n\nSuccess Criteria:\n- ADMIN role authorization enforced\n- Date range filtering works\n- Results sorted chronologically (oldest first)\n- Daily aggregation correct\n- Invalid date format returns 400\n\nQuery Variations:\n- {{baseUrl}}/analytics/feedback-per-day (all data)\n- {{baseUrl}}/analytics/feedback-per-day?startDate=2025-12-10 (from date)\n- {{baseUrl}}/analytics/feedback-per-day?endDate=2025-12-10 (until date)\n- {{baseUrl}}/analytics/feedback-per-day?startDate=2025-12-05&endDate=2025-12-10 (range)\n\nExample Response:\n{\n  \"success\": true,\n  \"message\": \"Feedback per day retrieved successfully\",\n  \"data\": [\n    {\n      \"date\": \"2025-12-01\",\n      \"count\": 5,\n      \"averageRating\": 4.0\n    },\n    {\n      \"date\": \"2025-12-02\",\n      \"count\": 8,\n      \"averageRating\": 4.5\n    },\n    {\n      \"date\": \"2025-12-03\",\n      \"count\": 3,\n      \"averageRating\": 3.67\n    }\n  ]\n}"
+      },
+      "response": []
+    }
+  ]
+}
