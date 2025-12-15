@@ -21,7 +21,13 @@ const app = express();
 /**
  * Security and parsing middleware
  */
-app.use(helmet()); // HTTP security headers
+// Helmet configuration
+// COOP header requires HTTPS or localhost (disable for HTTP)
+app.use(helmet({
+  crossOriginOpenerPolicy: process.env.NODE_ENV === 'production' && !process.env.ENABLE_HTTP_COOP 
+    ? { policy: 'same-origin' } 
+    : false, // Disable in development or HTTP
+}));
 
 /**
  * CORS configuration
